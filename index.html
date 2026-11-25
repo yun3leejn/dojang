@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="나를 찾고 내일을 잇다 — 3학년 12개 반 진로프로젝트 실시간 도장판">
+<title>나를 찾고 내일을 잇다</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: 밤하늘 별자리 위 12개 반 도장 카드 그리드 + 우측 실시간 순위·기록 레일. 프로젝터용 단일 다크 룩. */
+:root{
+  --night:#0D1230; --night-2:#151B45; --card:#1A2153; --card-2:#222A63;
+  --ink:#F1F2FF; --mute:#A3AADB; --dim:#6B73AB; --line:rgba(190,200,255,.12);
+  --sang:#FFC53D; --jung:#4FE0C4; --ha:#FF7EAD; --accent:#9B8CFF; --warn:#FF6B7A;
+  --f-display:"Black Han Sans","Do Hyeon","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-num:"Do Hyeon","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--night);color:var(--ink)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.55;min-height:100%;overflow-x:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:8px}
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#fx{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none}
+.wrap{position:relative;z-index:1;max-width:1480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+
+/* Hero */
+header.hero{display:grid;grid-template-columns:1fr auto;gap:16px 24px;align-items:end;padding-block:18px 22px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--f-num);font-size:15px;letter-spacing:.14em;color:var(--accent)}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(34px,5.6vw,72px);line-height:1.05;margin:6px 0 10px;text-wrap:balance;letter-spacing:-.01em}
+h1 .dot{color:var(--sang)}
+h1 .glow{background:linear-gradient(90deg,var(--sang),var(--ha) 55%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin:0;color:var(--mute);font-size:clamp(15px,1.6vw,19px);max-width:60ch;text-wrap:balance}
+.sub b{color:var(--ink);font-weight:400}
+.hero-side{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.weekchip{font-family:var(--f-num);font-size:22px;padding:6px 16px;border-radius:999px;background:var(--card);border:1px solid var(--line);white-space:nowrap}
+.weekchip span{color:var(--sang)}
+.weekbar{display:flex;gap:6px}
+.weekbar i{width:30px;height:6px;border-radius:3px;background:var(--card-2)}
+.weekbar i.on{background:linear-gradient(90deg,var(--sang),var(--ha))}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.tbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);padding:7px 12px;border-radius:10px;font-size:14px;transition:background .15s}
+.tbtn:hover{background:var(--card-2)}
+#loginBtn{background:var(--accent);color:#120d33;border-color:transparent;font-weight:700}
+.tbtn[aria-pressed="true"]{background:var(--accent);color:#120d33;border-color:transparent}
+
+/* Notice */
+.notice{margin-top:14px;padding:10px 14px;border-radius:10px;background:rgba(255,197,61,.1);border:1px solid rgba(255,197,61,.3);color:var(--sang);font-size:14px}
+
+/* Teacher panel */
+.teacher{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:12px 14px;border-radius:14px;background:rgba(155,140,255,.08);border:1px dashed rgba(155,140,255,.4)}
+.teacher .tag{font-family:var(--f-num);font-size:15px;color:var(--accent);letter-spacing:.06em}
+.teacher label{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--mute)}
+.teacher input[type=text]{width:min(260px,60vw);background:var(--night);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.teacher input[type=number],.teacher select{background:var(--night);border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:84px}
+.legend{display:flex;gap:12px;font-size:14px;color:var(--mute);margin-left:auto}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:50%}
+
+/* Main layout */
+main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;margin-top:20px}
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-content:start}
+@media (max-width:1300px) and (min-width:1101px){.board{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:900px){.board{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.card{position:relative;background:linear-gradient(180deg,var(--card),var(--night-2));border:1px solid var(--line);border-radius:18px;padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px;transition:transform .25s, box-shadow .25s}
+.card.hit{animation:hit .7s ease-out}
+.card.undone{animation:undone .55s ease-out}
+.card.lead{border-color:rgba(255,197,61,.55);box-shadow:0 0 0 1px rgba(255,197,61,.25),0 10px 40px -12px rgba(255,197,61,.35)}
+@keyframes hit{0%{transform:scale(1)}20%{transform:scale(1.045) rotate(-.6deg)}45%{transform:scale(.985)}100%{transform:scale(1)}}
+@keyframes undone{0%{box-shadow:0 0 0 2px var(--warn)}20%{transform:translateX(-5px)}40%{transform:translateX(4px)}60%{transform:translateX(-2px)}100%{transform:none;box-shadow:0 0 0 0 transparent}}
+.c-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.c-name{font-family:var(--f-display);font-size:30px;line-height:1}
+.c-name small{font-family:var(--f-num);font-size:14px;color:var(--dim);margin-right:4px}
+.c-rank{font-family:var(--f-num);font-size:14px;padding:2px 10px;border-radius:999px;background:var(--card-2);color:var(--mute);white-space:nowrap}
+.c-rank.r1{background:var(--sang);color:#2a1c00}
+.c-rank.r2{background:#D7DBF5;color:#1b1f45}
+.c-rank.r3{background:#E59C6A;color:#2b1405}
+.c-total{display:flex;align-items:baseline;gap:6px}
+.c-total b{font-family:var(--f-num);font-weight:400;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.c-total span{color:var(--mute);font-size:14px}
+.c-total em{margin-left:auto;font-style:normal;font-family:var(--f-num);font-size:15px;color:var(--jung)}
+.grid{display:grid;grid-template-columns:repeat(20,1fr);gap:3px}
+.cell{aspect-ratio:1;max-width:100%;border-radius:50%;border:1px dashed rgba(190,200,255,.18);position:relative}
+.cell.f{border:none;transform:rotate(var(--r,0deg))}
+.cell.f::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.55),transparent 45%),var(--c);box-shadow:inset 0 0 0 2px rgba(0,0,0,.18)}
+.cell.s{--c:var(--sang)} .cell.j{--c:var(--jung)} .cell.h{--c:var(--ha)}
+.cell.new{animation:pop .55s cubic-bezier(.2,1.6,.4,1) both;animation-delay:var(--d,0s)}
+.cell.gone{border:1px dashed rgba(190,200,255,.18);animation:gone .5s ease-out both}
+.cell.gone::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--c);animation:fade .5s ease-out forwards}
+@keyframes pop{0%{transform:scale(2.4) rotate(-30deg);opacity:0}60%{opacity:1}100%{transform:scale(1) rotate(var(--r,0deg));opacity:1}}
+@keyframes gone{0%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes fade{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(.2)}}
+.over{font-family:var(--f-num);font-size:14px;color:var(--sang)}
+.mile{display:flex;gap:4px}
+.mile i{flex:1;height:5px;border-radius:3px;background:var(--card-2)}
+.mile i.on{background:var(--accent)}
+.c-per{display:flex;align-items:center;gap:8px;font-family:var(--f-num);font-size:15px;color:var(--mute);padding:5px 10px;border-radius:10px;background:rgba(155,140,255,.08);border:1px dashed rgba(155,140,255,.3)}
+.c-per::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--dim)}
+.c-per.ok{color:#d9fff6;background:rgba(79,224,196,.12);border:1px solid rgba(79,224,196,.45)}
+.c-per.ok::before{background:var(--jung);box-shadow:0 0 8px var(--jung)}
+.c-per.closed{color:#ffc2c9;background:rgba(255,107,122,.08);border:1px solid rgba(255,107,122,.35)}
+.c-per.closed::before{background:var(--warn)}
+.c-last{font-size:13px;color:var(--mute);min-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-last b{font-family:var(--f-num);font-weight:400;color:var(--ink);font-size:15px}
+.c-last .by{color:var(--sang)}
+.nickbox{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--mute)}
+.nickbox b{font-family:var(--f-num);font-weight:400;font-size:17px;color:var(--sang)}
+.nickbox .tbtn{padding:4px 10px;font-size:13px}
+.nick-in{width:100%;margin-top:4px;background:var(--night);border:1px solid rgba(155,140,255,.5);border-radius:12px;padding:12px 14px;font-family:var(--f-num);font-size:22px;text-align:center}
+.nick-warn{margin:0 0 10px;padding:9px 10px;border-radius:10px;background:rgba(255,107,122,.12);border:1px solid rgba(255,107,122,.45);color:#ffd0d6;font-family:var(--f-num);font-size:15px}
+.nickbox small{color:var(--dim);font-size:12px}
+.nick-ok.confirm{background:var(--sang)}
+.nick-ok{width:100%;border:none;border-radius:12px;padding:12px 0;background:var(--accent);color:#120d33;font-family:var(--f-num);font-size:19px}
+.feed .what .by{color:var(--sang)}
+.c-btns{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px}
+.c-btns .aw:disabled,.c-btns .aw:disabled:hover,.c-btns .aw:disabled:active{filter:grayscale(.85) brightness(.55);cursor:not-allowed;transform:none}
+.perchip{font-family:var(--f-num);font-size:18px;padding:5px 14px;border-radius:999px;background:rgba(79,224,196,.12);border:1px solid rgba(79,224,196,.4);color:#d9fff6;white-space:nowrap}
+.teacher .today{font-family:var(--f-num);color:var(--ink);font-size:15px}
+.aw{border:none;border-radius:10px;padding:9px 0 7px;font-family:var(--f-num);font-size:18px;line-height:1.1;color:#16112e;transition:transform .1s, filter .15s}
+.aw small{display:block;font-size:12px;opacity:.75}
+.aw:hover{filter:brightness(1.08)} .aw:active{transform:scale(.94)}
+.aw.s{background:var(--sang)} .aw.j{background:var(--jung)} .aw.h{background:var(--ha)}
+.undo{border:1px solid rgba(255,107,122,.45);background:rgba(255,107,122,.08);border-radius:10px;padding:0 10px;color:#ffc2c9;font-family:var(--f-num);font-size:15px;line-height:1.1;transition:background .15s, transform .1s}
+.undo small{display:block;font-size:11px;opacity:.7}
+.undo:hover{background:rgba(255,107,122,.2)} .undo:active{transform:scale(.94)}
+.undo:disabled{opacity:.35;cursor:default;background:transparent;border-color:var(--line);color:var(--dim)}
+body.student .c-btns, body.student .teacher, body.student .feed .x{display:none}
+
+/* Rail */
+aside{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:rgba(21,27,69,.85);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.panel h2{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0 0 10px;display:flex;align-items:center;justify-content:space-between}
+.live{font-family:var(--f-num);font-size:13px;color:var(--jung);display:inline-flex;align-items:center;gap:6px}
+.live::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;animation:blink 1.6s infinite}
+.live.off{color:var(--dim)} .live.off::before{animation:none}
+@keyframes blink{50%{opacity:.25}}
+.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rank li{display:grid;grid-template-columns:28px 46px 1fr 44px;align-items:center;gap:8px;font-family:var(--f-num);font-size:17px}
+.rank .no{color:var(--dim);text-align:center}
+.rank li:nth-child(1) .no{color:var(--sang)}
+.rank .bar{height:12px;border-radius:6px;background:var(--card-2);overflow:hidden}
+.rank .bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--ha));transition:width .8s cubic-bezier(.2,.9,.3,1)}
+.rank li:nth-child(1) .bar i{background:linear-gradient(90deg,var(--sang),#ffdf8a)}
+.rank .v{text-align:right;font-variant-numeric:tabular-nums}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.feed li{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center}
+.feed .lv{font-family:var(--f-num);width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#16112e;font-size:16px}
+.feed .lv.s{background:var(--sang)} .feed .lv.j{background:var(--jung)} .feed .lv.h{background:var(--ha)}
+.feed .what{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed .what b{font-family:var(--f-num);font-weight:400;font-size:16px;margin-right:4px}
+.feed .when{color:var(--dim);font-size:12px;white-space:nowrap}
+.feed .x{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:13px;line-height:1;display:grid;place-items:center;padding:0}
+.feed .x:hover{background:rgba(255,107,122,.2);color:#ffc2c9;border-color:transparent}
+.empty{color:var(--dim);font-size:14px;margin:0}
+.music .row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.music .tbtn{font-size:13px;padding:6px 10px}
+.music label.vol{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)}
+.music input[type=range]{flex:1;accent-color:var(--accent)}
+.music .file{font-size:12px;color:var(--dim);margin-top:8px}
+.eq{display:inline-flex;gap:2px;align-items:flex-end;height:14px}
+.eq i{width:3px;background:var(--jung);height:4px;border-radius:1px}
+.playing .eq i{animation:eq .8s infinite ease-in-out}
+.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
+@keyframes eq{50%{height:14px}}
+
+/* Stamp overlay */
+#stage{position:fixed;inset:0;z-index:50;display:grid;place-items:center;pointer-events:none}
+.bigstamp{width:min(420px,78vw);aspect-ratio:1;max-width:100%;animation:slam 1.9s cubic-bezier(.2,.9,.25,1) forwards;filter:drop-shadow(0 20px 50px rgba(0,0,0,.5))}
+@keyframes slam{0%{transform:scale(3) rotate(-28deg);opacity:0}18%{transform:scale(.92) rotate(-9deg);opacity:1}26%{transform:scale(1.04) rotate(-9deg)}34%{transform:scale(1) rotate(-9deg)}78%{transform:scale(1) rotate(-9deg);opacity:1}100%{transform:scale(.6) rotate(-9deg) translateY(30vh);opacity:0}}
+.banner{position:absolute;bottom:14vh;left:50%;transform:translateX(-50%);font-family:var(--f-display);font-size:clamp(28px,5vw,60px);white-space:pre;text-align:center;line-height:1.15;animation:rise 2.6s ease forwards;text-shadow:0 4px 30px rgba(0,0,0,.6)}
+@keyframes rise{0%{opacity:0;transform:translate(-50%,30px)}15%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-20px)}}
+body.shake .wrap{animation:shake .35s}
+@keyframes shake{20%{transform:translate(-6px,3px)}40%{transform:translate(5px,-4px)}60%{transform:translate(-3px,2px)}80%{transform:translate(2px,-1px)}}
+.toast{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--night);padding:10px 18px;border-radius:999px;font-family:var(--f-num);font-size:17px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:rise 3.2s ease forwards;max-width:calc(100% - 32px);text-align:center}
+.utoast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:14px;background:#2a1530;border:1px solid rgba(255,107,122,.5);color:#ffe3e7;padding:10px 10px 10px 18px;border-radius:14px;font-family:var(--f-num);font-size:17px;box-shadow:0 12px 34px rgba(0,0,0,.5);max-width:calc(100% - 32px);animation:up .25s ease-out}
+.utoast button{border:none;border-radius:9px;background:var(--ink);color:var(--night);padding:6px 14px;font-family:var(--f-num);font-size:15px;white-space:nowrap}
+.utoast .bar{position:absolute;left:12px;right:12px;bottom:4px;height:2px;border-radius:1px;background:rgba(255,107,122,.6);transform-origin:left;animation:shrink 6s linear forwards}
+@keyframes up{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes shrink{to{transform:scaleX(0)}}
+
+/* 2차 인증 창 */
+.pin{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:rgba(6,9,28,.78);backdrop-filter:blur(6px);padding:16px}
+.pin-box{width:min(360px,100%);background:linear-gradient(180deg,var(--card-2),var(--night-2));border:1px solid rgba(155,140,255,.45);border-radius:22px;padding:22px 20px 16px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.55);animation:up .25s ease-out}
+.pin-lock{font-size:30px;line-height:1}
+.pin-box h3{font-family:var(--f-display);font-weight:400;font-size:26px;margin:8px 0 4px}
+.pin-sub{margin:0 0 14px;color:var(--mute);font-size:14px}
+.pin-dots{display:flex;justify-content:center;gap:10px;margin-bottom:6px}
+.pin-dots i{width:14px;height:14px;border-radius:50%;border:2px solid rgba(190,200,255,.4)}
+.pin-dots i.on{background:var(--sang);border-color:var(--sang);box-shadow:0 0 10px rgba(255,197,61,.6)}
+.pin-in{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.pin-err{min-height:22px;margin:6px 0 10px;color:#ffb3bd;font-size:14px}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pin-pad button{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 0;font-family:var(--f-num);font-size:24px;transition:background .12s, transform .08s}
+.pin-pad button:hover{background:var(--card-2)} .pin-pad button:active{transform:scale(.95)}
+.pin-pad .ok{background:var(--accent);color:#120d33;border-color:transparent;font-size:19px}
+.pin-pad .ok:disabled{opacity:.4;cursor:default}
+.pin-cancel{margin-top:12px;border:none;background:transparent;color:var(--dim);font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.pin.shake .pin-box{animation:shake .35s}
+@media (max-width:1100px){main{grid-template-columns:1fr} aside{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}}
+@media (max-width:640px){header.hero{grid-template-columns:1fr}.hero-side{align-items:flex-start}.toolbar{justify-content:flex-start}.board{grid-template-columns:1fr 1fr;gap:10px}.card{padding:10px}.c-name{font-size:24px}.c-total b{font-size:32px}.legend{margin-left:0}.grid{gap:2px;grid-template-columns:repeat(20,1fr)}.aw{padding:11px 0 9px}.utoast{font-size:15px}}
+@media (max-width:420px){.board{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}}
+</style>
+
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <div class="eyebrow">중학교 3학년 · 고교 전환기 5주 프로젝트</div>
+      <h1>나를 찾고 <span class="glow">내일을 잇다</span><span class="dot">.</span></h1>
+      <p class="sub">내 안의 가능성을 발견하고 미래의 길을 여는 <b>우리 반의 진로프로젝트</b></p>
+    </div>
+    <div class="hero-side">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><div class="perchip" id="perChip"></div><div class="weekchip"><span id="weekNo">1</span>주차 <small style="color:var(--dim)">/ 5주</small></div></div>
+      <div class="weekbar" id="weekBar" aria-hidden="true"></div>
+      <div class="toolbar">
+        <button class="tbtn" id="loginBtn" hidden>선생님 로그인</button>
+        <button class="tbtn" id="soundBtn" aria-pressed="false">소리 켜기</button>
+        <button class="tbtn" id="studentBtn" aria-pressed="false" hidden>학생 화면</button>
+        <button class="tbtn" id="fsBtn">전체화면</button>
+      </div>
+    </div>
+  </header>
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="teacher" id="teacher" hidden aria-label="교사용 설정">
+    <span class="tag">교사 모드</span>
+    <span class="today" id="todayTxt"></span>
+    <span class="nickbox">닉네임 <b id="nickTxt">-</b> <small>🔒 변경 불가</small></span>
+    <label for="memo">활동 메모 <input type="text" id="memo" placeholder="예: 직업 탐색 모둠 발표" maxlength="40"></label>
+    <label for="weekSel">주차 <select id="weekSel"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+    <label for="goalIn">반별 목표 <input type="number" id="goalIn" min="20" max="300" step="10" value="100"></label>
+    <div class="legend"><span><i style="background:var(--sang)"></i>상 3개</span><span><i style="background:var(--jung)"></i>중 2개</span><span><i style="background:var(--ha)"></i>하 1개</span></div>
+  </section>
+
+  <main>
+    <div class="board" id="board" aria-live="polite"></div>
+    <aside>
+      <section class="panel">
+        <h2>실시간 순위 <span class="live off" id="liveDot">연결 중</span></h2>
+        <ol class="rank" id="rank"></ol>
+      </section>
+      <section class="panel">
+        <h2>방금 찍힌 도장</h2>
+        <ul class="feed" id="feed"></ul>
+      </section>
+      <section class="panel music" id="music">
+        <h2>배경 음악 <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span></h2>
+        <div class="row">
+          <button class="tbtn" data-bgm="hype" aria-pressed="false">신나는 비트</button>
+          <button class="tbtn" data-bgm="chill" aria-pressed="false">로파이 칠</button>
+          <button class="tbtn" data-bgm="off" aria-pressed="true">끄기</button>
+        </div>
+        <div class="row">
+          <label class="tbtn" for="fileIn" style="cursor:pointer">내 음악 파일 재생</label>
+          <input type="file" id="fileIn" accept="audio/*" hidden>
+        </div>
+        <label class="vol" for="vol">볼륨 <input type="range" id="vol" min="0" max="100" value="60"></label>
+        <p class="file" id="fileName">학생들이 좋아하는 노래 파일(mp3 등)을 불러오면 반복 재생돼요.</p>
+      </section>
+    </aside>
+  </main>
+</div>
+<div class="pin" id="pin" hidden role="dialog" aria-modal="true" aria-labelledby="pinTitle">
+  <form class="pin-box" id="pinForm" autocomplete="off">
+    <div class="pin-lock" aria-hidden="true">🔐</div>
+    <h3 id="pinTitle">선생님 2차 인증</h3>
+    <p class="pin-sub">선생님들만 아는 8자리 암호를 입력해 주세요</p>
+    <div class="pin-dots" id="pinDots" aria-hidden="true"></div>
+    <input id="pinIn" class="pin-in" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="one-time-code" aria-label="8자리 암호">
+    <p class="pin-err" id="pinErr" role="alert"></p>
+    <div class="pin-pad" id="pinPad">
+      <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+      <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+      <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+      <button type="button" data-k="del" aria-label="한 글자 지우기">⌫</button><button type="button" data-k="0">0</button><button type="submit" id="pinOk" class="ok" disabled>확인</button>
+    </div>
+    <button type="button" class="pin-cancel" id="pinCancel">취소하고 로그아웃</button>
+  </form>
+</div>
+<div class="pin" id="nickDlg" hidden role="dialog" aria-modal="true" aria-labelledby="nickTitle">
+  <form class="pin-box" id="nickForm" autocomplete="off">
+    <div class="pin-lock" aria-hidden="true">🏷️</div>
+    <h3 id="nickTitle">선생님 닉네임 정하기</h3>
+    <p class="pin-sub">도장을 찍으면 도장 밑에 이 닉네임이 표시돼요</p>
+    <p class="nick-warn">⚠️ 닉네임 설정 후 이번 프로젝트가 끝나기 전까지 변경 불가</p>
+    <input id="nickIn" class="nick-in" type="text" maxlength="10" placeholder="예: 진로쌤, 김선생님" aria-label="닉네임 (1~10자)">
+    <p class="pin-err" id="nickErr" role="alert"></p>
+    <button type="submit" class="nick-ok" id="nickOk">이 닉네임으로 정하기</button>
+    <button type="button" class="pin-cancel" id="nickCancel">취소하고 로그아웃</button>
+  </form>
+</div>
+<div id="stage" aria-hidden="true"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script>
+/* ===== 설정: Firebase 프로젝트 정보 ===== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDSgalBzRfL8TQXaxWWMryGjRHBfGuMyrI",
+  authDomain: "project-6491637882166523777.firebaseapp.com",
+  projectId: "project-6491637882166523777",
+  storageBucket: "project-6491637882166523777.firebasestorage.app",
+  messagingSenderId: "1027358569677",
+  appId: "1:1027358569677:web:02575fab0bc78c03812584"
+};
+// 선생님 2차 인증 암호는 이 파일에 없어요. Firebase 보안 규칙(서버)에만 있어서 학생이 페이지 소스를 봐도 알 수 없어요.
+/* ================================================================== */
+(() => {
+const N = 12;
+const LV = { "상": {n:3, k:"s", col:"#FFC53D"}, "중": {n:2, k:"j", col:"#4FE0C4"}, "하": {n:1, k:"h", col:"#FF7EAD"} };
+const S = { awards: {}, goal: 100, week: 1, mode: "loading", canEdit: false, student: false, soundOn: false };
+for (let i = 1; i <= N; i++) S.awards[i] = [];
+const loadT = Date.now();
+const seen = new Set();        // 이미 축하 효과를 낸 도장 id
+const removed = new Set();     // 취소 처리한 도장 id (늦게 도착한 스냅샷에서 되살아나지 않게)
+const prevCount = {};
+let prevLeader = null, db = null;
+const $ = s => document.querySelector(s);
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- Board ---------- */
+function buildBoard(){
+  const b = $("#board"); b.innerHTML = "";
+  for (let i = 1; i <= N; i++){
+    const c = document.createElement("article");
+    c.className = "card"; c.id = "c"+i;
+    c.innerHTML = `
+      <div class="c-head"><div class="c-name"><small>3학년</small>${i}반</div><span class="c-rank" data-rank>-</span></div>
+      <div class="c-total"><b data-total>0</b><span>개</span><em data-week></em></div>
+      <div class="grid" data-grid></div>
+      <div class="c-last" data-last></div>
+      <div class="mile" data-mile><i></i><i></i><i></i><i></i></div>
+      <div class="c-per" data-per></div>
+      <div class="c-btns">
+        <button class="aw s" data-cls="${i}" data-lv="상" aria-label="${i}반 상 도장 3개">상<small>+3</small></button>
+        <button class="aw j" data-cls="${i}" data-lv="중" aria-label="${i}반 중 도장 2개">중<small>+2</small></button>
+        <button class="aw h" data-cls="${i}" data-lv="하" aria-label="${i}반 하 도장 1개">하<small>+1</small></button>
+        <button class="undo" data-undo="${i}" aria-label="${i}반 마지막 도장 취소" disabled>취소<small>↶</small></button>
+      </div>`;
+    b.appendChild(c);
+  }
+}
+const sorted = i => [...S.awards[i]].sort((a,b)=>a.t-b.t || String(a.id).localeCompare(String(b.id)));
+const total = i => S.awards[i].reduce((a,x)=>a+(x.n||0),0);
+const weekTotal = i => S.awards[i].filter(x=>x.wk===S.week).reduce((a,x)=>a+(x.n||0),0);
+
+/* mode: "add" = 새 도장 팝 애니메이션, "remove" = 빠진 칸 사라지는 애니메이션 */
+function renderCard(i, mode){
+  const c = $("#c"+i); if (!c) return;
+  const list = sorted(i);
+  const fills = [];
+  list.forEach(a => { for (let k=0;k<a.n;k++) fills.push({k: LV[a.lv]?.k || "h", r: ((hash(a.id+k)%24)-12), by: a.by||""}); });
+  const t = fills.length, g = S.goal;
+  const prev = prevCount[i] ?? t;
+  c.querySelector("[data-total]").textContent = t;
+  const wt = weekTotal(i);
+  c.querySelector("[data-week]").textContent = wt ? `이번 주 +${wt}` : "";
+  const grid = c.querySelector("[data-grid]");
+  // 사라지는 칸의 색을 기억해 두기 위해 현재 그려진 칸 정보를 읽음
+  const oldCells = mode==="remove" ? [...grid.children].map(el => el.classList.contains("s")?"s":el.classList.contains("j")?"j":el.classList.contains("h")?"h":null) : [];
+  let html = "";
+  const shown = Math.min(t, g);
+  for (let x=0; x<g; x++){
+    if (x < shown){
+      const f = fills[x], isNew = mode==="add" && x >= prev;
+      html += `<i class="cell f ${f.k}${isNew?" new":""}" style="--r:${f.r}deg${isNew?`;--d:${(x-prev)*0.09}s`:""}"${f.by?` title="${esc(f.by)}"`:""}></i>`;
+    } else if (mode==="remove" && x < Math.min(prev, g) && oldCells[x]) {
+      html += `<i class="cell gone ${oldCells[x]}"></i>`;
+    } else html += `<i class="cell"></i>`;
+  }
+  grid.innerHTML = html;
+  let over = c.querySelector(".over");
+  if (t > g){ if(!over){ over=document.createElement("div"); over.className="over"; grid.after(over);} over.textContent = `목표 달성! +${t-g}개 초과`; }
+  else if (over) over.remove();
+  c.querySelectorAll("[data-mile] i").forEach((m,ix)=> m.classList.toggle("on", t >= g*(ix+1)/4));
+  const ub = c.querySelector(".undo");
+  ub.disabled = !canCancel(gotThisPeriod(i));
+  ub.title = ub.disabled ? "취소는 도장을 찍은 그 교시 안에서만 할 수 있어요" : "이번 교시 도장 취소";
+  const last = list[list.length-1];
+  c.querySelector("[data-last]").innerHTML = last
+    ? `마지막 도장 <b>${last.p?`${last.p}교시 `:""}${esc(last.lv)} +${last.n}</b>${last.by?` · <span class="by">${esc(last.by)}</span>`:""}`
+    : "";
+  renderPer(i);
+  prevCount[i] = t;
+}
+/* 이번 교시 도장 여부 표시 + 이미 받았으면 상·중·하 버튼 잠금 */
+function renderPer(i){
+  const c = $("#c"+i); if (!c) return;
+  const got = P.open ? gotThisPeriod(i) : null;
+  const chip = c.querySelector("[data-per]");
+  chip.textContent = !P.open
+    ? (P.why==="weekend" ? "주말 · 도장 없음" : P.why==="before" ? `수업 전 · ${hm(OPEN_AT)}부터 도장 가능` : `도장 마감 · ${P.max}교시 ${P.closeTxt} 종료`)
+    : got ? `${P.cur}교시 도장 완료 · ${got.lv} +${got.n}${got.by?` · ${got.by}`:""}` : `${P.cur}교시 도장 대기 중`;
+  chip.classList.toggle("ok", P.open && !!got);
+  chip.classList.toggle("closed", !P.open);
+  const ub = c.querySelector(".undo");
+  ub.disabled = !canCancel(got);
+  ub.title = ub.disabled ? "취소는 도장을 찍은 그 교시 안에서만 할 수 있어요" : "이번 교시 도장 취소";
+  c.querySelectorAll(".aw").forEach(b => {
+    b.disabled = !P.open || !!got;
+    b.title = !P.open ? closedMsg() : got ? `${P.cur}교시에는 이미 도장을 줬어요` : "";
+  });
+}
+
+/* ---------- 교시 (월·수·금 6교시, 화·목 7교시 / 반마다 한 교시에 도장 1번 / 수업 시간에만) ----------
+   ※ 시각을 바꾸면 Firestore 보안 규칙의 숫자도 함께 바꿔야 해요 (서버가 같은 시간으로 다시 검사해요). */
+const BELL = [[9,0],[9,55],[10,50],[11,45],[13,30],[14,25],[15,20]];   // 각 교시 시작 시각
+const OPEN_AT = [8,50];                                              // 이때부터 도장 가능 (1교시 10분 전)
+const CLOSE_AT = { 6:[15,10], 7:[16,5] };                            // 6교시 끝 15:10, 7교시 끝 16:05 → 이후 도장 불가
+const DAYS = ["일","월","화","수","목","금","토"];
+const KST = 9*3600*1000, DAYMS = 86400000;
+const P = { day:"", max:6, cur:1, wd:1, open:false, why:"", closeTxt:"" };
+const hm = ([h,m]) => `${h}:${String(m).padStart(2,"0")}`;
+const msOf = ([h,m]) => (h*60+m)*60000;
+function kstNow(){
+  const now = Date.now(), d = new Date(now + KST);
+  return { y:d.getUTCFullYear(), mo:d.getUTCMonth()+1, dd:d.getUTCDate(), wd:d.getUTCDay(), ms:(now + KST) % DAYMS };
+}
+const maxPeriods = wd => (wd===2 || wd===4) ? 7 : 6;
+function autoPeriod(ms, max){
+  let p = 1;
+  BELL.forEach((t,ix)=>{ if (ix < max && ms >= msOf(t) - 10*60000) p = ix+1; });   // 수업 10분 전부터 다음 교시로
+  return p;
+}
+function closedMsg(){
+  if (P.why==="weekend") return "주말에는 도장을 찍을 수 없어요";
+  if (P.why==="before") return `아직 수업 전이에요. ${hm(OPEN_AT)}부터 도장을 찍을 수 있어요`;
+  return `오늘 수업이 끝났어요. ${P.max}교시 종료(${P.closeTxt}) 이후에는 도장을 찍을 수 없어요`;
+}
+const stampId = (day, p) => `${day}_p${p}`;
+/* 도장 취소는 그 도장을 찍은 교시가 아직 진행 중일 때만 (교시가 끝나면 어떤 관리자도 취소 불가 — 서버 규칙도 같은 검사) */
+const canCancel = a => !!a && P.open && a.day === P.day && a.p === P.cur;
+const gotThisPeriod = i => S.awards[i].find(a => a.day===P.day && a.p===P.cur);
+function refreshPeriod(force){
+  const k = kstNow();
+  const before = P.cur + "|" + P.open;
+  P.day = `${k.y}-${String(k.mo).padStart(2,"0")}-${String(k.dd).padStart(2,"0")}`;
+  P.wd = k.wd; P.max = maxPeriods(k.wd);
+  P.cur = autoPeriod(k.ms, P.max);
+  P.closeTxt = hm(CLOSE_AT[P.max]);
+  const weekend = k.wd===0 || k.wd===6;
+  P.open = !weekend && k.ms >= msOf(OPEN_AT) && k.ms < msOf(CLOSE_AT[P.max]);
+  P.why = weekend ? "weekend" : k.ms < msOf(OPEN_AT) ? "before" : k.ms >= msOf(CLOSE_AT[P.max]) ? "after" : "";
+  $("#todayTxt").textContent = `${k.mo}월 ${k.dd}일(${DAYS[k.wd]}) · ${weekend ? "주말 · 도장 없음" : `${P.max}교시 · ${P.closeTxt} 마감`}`;
+  $("#perChip").textContent = weekend ? `${DAYS[k.wd]}요일 · 주말` : !P.open ? (P.why==="before" ? `${DAYS[k.wd]}요일 · 수업 전` : `${DAYS[k.wd]}요일 · 오늘 수업 끝`) : `${DAYS[k.wd]}요일 · 지금 ${P.cur}교시`;
+  if (force || before !== P.cur + "|" + P.open){ for (let i=1;i<=N;i++) renderPer(i); if (typeof renderFeed === "function" && S.mode!=="loading") renderFeed(); }
+}
+function hash(s){ s=String(s); let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); }
+
+function renderRanks(quiet){
+  const arr = []; for (let i=1;i<=N;i++) arr.push({i, t: total(i)});
+  arr.sort((a,b)=> b.t-a.t || a.i-b.i);
+  const max = Math.max(1, arr[0].t);
+  let rank = 0, last = null;
+  arr.forEach((r,ix)=>{ if (r.t!==last){ rank = ix+1; last = r.t; } r.rank = rank; });
+  $("#rank").innerHTML = arr.map(r=>`<li><span class="no">${r.rank}</span><span>${r.i}반</span><span class="bar"><i style="width:${(r.t/max*100).toFixed(1)}%"></i></span><span class="v">${r.t}</span></li>`).join("");
+  arr.forEach(r=>{
+    const el = $("#c"+r.i+" [data-rank]");
+    const any = r.t>0;
+    el.textContent = any ? `${r.rank}위` : "-";
+    el.className = "c-rank" + (any && r.rank<=3 ? " r"+r.rank : "");
+    $("#c"+r.i).classList.toggle("lead", any && r.rank===1);
+  });
+  const leader = arr[0].t>0 && (arr[1].t < arr[0].t) ? arr[0].i : null;
+  if (!quiet && S.mode!=="loading" && leader && prevLeader!==null && leader!==prevLeader) toast(`1위 탈환! ${leader}반이 선두로 올라섰어요`);
+  if (S.mode!=="loading") prevLeader = leader ?? (quiet ? 0 : (prevLeader ?? 0));
+}
+function ago(t){ const s=Math.max(0,(Date.now()-t)/1000|0); if(s<60) return "방금"; if(s<3600) return `${s/60|0}분 전`; if(s<86400) return `${s/3600|0}시간 전`; return `${s/86400|0}일 전`; }
+function esc(s){ return String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function renderFeed(){
+  const all = []; for (let i=1;i<=N;i++) S.awards[i].forEach(a=>all.push({...a, cls:i}));
+  all.sort((a,b)=>b.t-a.t);
+  const top = all.slice(0,8);
+  $("#feed").innerHTML = top.length ? top.map(a=>`<li><span class="lv ${LV[a.lv]?.k||"h"}">${esc(a.lv)}</span><span class="what"><b>${a.cls}반</b>${a.p?`${a.p}교시 `:""}+${a.n}${a.by?` · <span class="by">${esc(a.by)}</span>`:""}${a.memo?` · ${esc(a.memo)}`:""}</span><span class="when">${ago(a.t)}</span>${canCancel(a)?`<button class="x" data-del="${a.cls}" data-id="${esc(a.id)}" aria-label="${a.cls}반 ${esc(a.lv)} 도장 취소" title="이 도장 취소">✕</button>`:`<span></span>`}</li>`).join("")
+    : `<li><p class="empty">아직 도장이 없어요. 첫 도장을 찍어 줄 반은 어디일까요?</p></li>`;
+}
+function renderWeek(){
+  $("#weekNo").textContent = S.week;
+  $("#weekBar").innerHTML = [1,2,3,4,5].map(w=>`<i class="${w<=S.week?"on":""}"></i>`).join("");
+  $("#weekSel").value = String(S.week);
+  $("#goalIn").value = S.goal;
+}
+function renderAll(){ for(let i=1;i<=N;i++) renderCard(i); renderRanks(true); renderFeed(); renderWeek(); }
+
+/* ---------- Effects ---------- */
+const queue = []; let playing = null; let fxTimers = [];
+const later = (fn, ms) => { const id = setTimeout(fn, ms); fxTimers.push(id); return id; };
+function celebrate(cls, a){
+  queue.push({cls, a}); if (!playing) nextFx();
+}
+function nextFx(){
+  fxTimers.forEach(clearTimeout); fxTimers = [];
+  const job = queue.shift(); if (!job){ playing=null; return; }
+  playing = job;
+  const {cls, a} = job, lv = LV[a.lv] || LV["하"];
+  const before = total(cls) - a.n;
+  sfxStamp(a.lv);
+  stampOverlay(cls, a.lv, lv, a.by);
+  later(()=>{ document.body.classList.add("shake"); setTimeout(()=>document.body.classList.remove("shake"),360);
+    const card = $("#c"+cls); if (card){ card.classList.remove("hit"); void card.offsetWidth; card.classList.add("hit"); const r = card.getBoundingClientRect(); burst(r.left+r.width/2, r.top+r.height/2, lv.col, a.n*28); }
+    burst(innerWidth/2, innerHeight/2, lv.col, a.n*40);
+  }, 330);
+  const after = total(cls);
+  const ms = [1,2,3,4].map(k=>Math.round(S.goal*k/4)).find(m=> before < m && after >= m);
+  if (ms){ later(()=>{ const pct = Math.round(ms/S.goal*100); fireworks(); sfxFanfare(); bannerText(pct>=100 ? `${cls}반 목표 달성!` : `${cls}반 ${pct}% 돌파!`, "var(--sang)"); }, 1500); }
+  later(nextFx, ms ? 3600 : 1500);
+}
+/* 취소된 도장의 축하 효과를 즉시 멈추고, 대기 중인 효과에서도 빼기 */
+function cancelFx(id){
+  for (let k = queue.length-1; k >= 0; k--) if (queue[k].a.id === id) queue.splice(k,1);
+  if (playing && playing.a.id === id){
+    fxTimers.forEach(clearTimeout); fxTimers = [];
+    $("#stage").innerHTML = ""; document.body.classList.remove("shake");
+    parts = []; fctx.clearRect(0,0,innerWidth,innerHeight);
+    playing = null;
+    setTimeout(()=>{ if(!playing) nextFx(); }, 150);
+  }
+}
+function stampOverlay(cls, name, lv, by){
+  const st = $("#stage"); st.innerHTML = "";
+  const words = { "상":"최고예요", "중":"멋져요", "하":"좋아요" }[name] || "";
+  st.innerHTML = `<svg class="bigstamp" viewBox="0 0 200 200">
+    <defs><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="${cls}"/><feDisplacementMap in="SourceGraphic" scale="1.6"/></filter>
+    <path id="arc" d="M 30 100 A 70 70 0 0 1 170 100"/><path id="arc2" d="M 38 108 A 62 62 0 0 0 162 108"/></defs>
+    <g filter="url(#rough)" fill="none" stroke="${lv.col}">
+      <circle cx="100" cy="100" r="92" stroke-width="7"/><circle cx="100" cy="100" r="80" stroke-width="2.5"/><circle cx="100" cy="100" r="54" stroke-width="2.5"/>
+      <text font-family="Do Hyeon, sans-serif" font-size="17" fill="${lv.col}" stroke="none" letter-spacing="3"><textPath href="#arc" startOffset="50%" text-anchor="middle">나를 찾고 내일을 잇다</textPath></text>
+      <text font-family="Do Hyeon, sans-serif" font-size="17" fill="${lv.col}" stroke="none" letter-spacing="4"><textPath href="#arc2" startOffset="50%" text-anchor="middle">3학년 ${cls}반 · ${words}</textPath></text>
+      <text x="100" y="117" text-anchor="middle" font-family="Black Han Sans, sans-serif" font-size="56" fill="${lv.col}" stroke="none">${name}</text>
+      <text x="100" y="140" text-anchor="middle" font-family="Do Hyeon, sans-serif" font-size="${by?15:18}" fill="${lv.col}" stroke="none">${by?esc(by):"+"+lv.n}</text>
+    </g></svg>`;
+  bannerText(`${cls}반 도장 +${lv.n}${by?`\n✍ ${by}`:""}`, lv.col, 1300);
+}
+function bannerText(txt, col, delay=0){
+  later(()=>{ const b=document.createElement("div"); b.className="banner"; b.style.color=col; b.textContent=txt; $("#stage").appendChild(b); setTimeout(()=>b.remove(),2700); }, delay);
+}
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3300); }
+
+/* 취소 알림 + 되돌리기 버튼 (6초) */
+let uToast = null, uTimer = null;
+function undoToast(msg, onRestore){
+  if (uToast) uToast.remove(); clearTimeout(uTimer);
+  const el = document.createElement("div"); el.className = "utoast"; el.setAttribute("role","status");
+  const span = document.createElement("span"); span.textContent = msg;
+  const btn = document.createElement("button"); btn.textContent = "되돌리기";
+  const bar = document.createElement("i"); bar.className = "bar";
+  btn.addEventListener("click", ()=>{ el.remove(); uToast=null; clearTimeout(uTimer); onRestore(); });
+  el.append(span, btn, bar); document.body.appendChild(el); uToast = el;
+  uTimer = setTimeout(()=>{ el.remove(); if(uToast===el) uToast=null; }, 6000);
+}
+
+/* particles */
+const fx = $("#fx"), fctx = fx.getContext("2d"); let parts = [], fxRun = false;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function sizeFx(){ const d=devicePixelRatio||1; fx.width=innerWidth*d; fx.height=innerHeight*d; fctx.setTransform(d,0,0,d,0,0); }
+function burst(x,y,col,n){
+  if (reduce) return;
+  const cols=[col,"#ffffff","#9B8CFF",col];
+  for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, v=3+Math.random()*9;
+    parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-4,g:.25,life:60+Math.random()*50,c:cols[i%4],s:4+Math.random()*6,rot:Math.random()*6,vr:(Math.random()-.5)*.4,sh:Math.random()<.5}); }
+  if(!fxRun){ fxRun=true; requestAnimationFrame(tick); }
+}
+function fireworks(){ for(let k=0;k<6;k++) later(()=>burst(innerWidth*(.15+Math.random()*.7), innerHeight*(.15+Math.random()*.4), ["#FFC53D","#4FE0C4","#FF7EAD","#9B8CFF"][k%4], 70), k*260); }
+function tick(){
+  fctx.clearRect(0,0,innerWidth,innerHeight);
+  parts = parts.filter(p=>p.life>0);
+  for(const p of parts){ p.vx*=.985; p.vy=p.vy*.985+p.g; p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr; p.life--;
+    fctx.save(); fctx.globalAlpha=Math.min(1,p.life/30); fctx.translate(p.x,p.y); fctx.rotate(p.rot); fctx.fillStyle=p.c;
+    if(p.sh){ fctx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2); } else { fctx.beginPath(); fctx.arc(0,0,p.s/2.4,0,7); fctx.fill(); }
+    fctx.restore(); }
+  if(parts.length) requestAnimationFrame(tick); else { fxRun=false; fctx.clearRect(0,0,innerWidth,innerHeight); }
+}
+
+/* sky: twinkling stars connected like a path */
+const sky=$("#sky"), sctx=sky.getContext("2d"); let stars=[];
+function sizeSky(){ const d=devicePixelRatio||1; sky.width=innerWidth*d; sky.height=innerHeight*d; sctx.setTransform(d,0,0,d,0,0);
+  stars = Array.from({length: Math.round(innerWidth*innerHeight/9000)}, ()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.4+.3,p:Math.random()*6})); drawSky(0); }
+function drawSky(t){
+  sctx.clearRect(0,0,innerWidth,innerHeight);
+  const g=sctx.createRadialGradient(innerWidth*.8,0,0,innerWidth*.8,0,innerWidth*.9); g.addColorStop(0,"rgba(155,140,255,.18)"); g.addColorStop(1,"rgba(13,18,48,0)");
+  sctx.fillStyle=g; sctx.fillRect(0,0,innerWidth,innerHeight);
+  sctx.strokeStyle="rgba(190,200,255,.08)"; sctx.lineWidth=1; sctx.beginPath();
+  const path=stars.slice(0,9).sort((a,b)=>a.x-b.x); path.forEach((s,i)=> i?sctx.lineTo(s.x,s.y):sctx.moveTo(s.x,s.y)); sctx.stroke();
+  for(const s of stars){ const a=.35+.45*Math.sin(t/900+s.p); sctx.fillStyle=`rgba(230,234,255,${a})`; sctx.beginPath(); sctx.arc(s.x,s.y,s.r,0,7); sctx.fill(); }
+}
+function skyLoop(t){ drawSky(t); if(!reduce) requestAnimationFrame(skyLoop); }
+
+/* ---------- Audio (Web Audio, all original synth) ---------- */
+let ac=null, master, sfxG, bgmG, noiseBuf, vol=.6;
+function audio(){
+  if(!ac){ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null; ac=new AC();
+    master=ac.createGain(); master.gain.value=vol; master.connect(ac.destination);
+    sfxG=ac.createGain(); sfxG.gain.value=.9; sfxG.connect(master);
+    bgmG=ac.createGain(); bgmG.gain.value=.38; bgmG.connect(master);
+    noiseBuf=ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; }
+  if(ac.state==="suspended") ac.resume();
+  return ac;
+}
+const hz = m => 440*Math.pow(2,(m-69)/12);
+function tone(dest, t, m, dur, type="triangle", g=.2, cut=0){
+  const o=ac.createOscillator(), e=ac.createGain(); o.type=type; o.frequency.value=hz(m);
+  let node=o; if(cut){ const f=ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value=cut; o.connect(f); node=f; }
+  node.connect(e); e.connect(dest);
+  e.gain.setValueAtTime(0,t); e.gain.linearRampToValueAtTime(g,t+.01); e.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  o.start(t); o.stop(t+dur+.05);
+}
+function noise(dest,t,dur,type,freq,g){
+  const s=ac.createBufferSource(); s.buffer=noiseBuf; const f=ac.createBiquadFilter(); f.type=type; f.frequency.value=freq; const e=ac.createGain();
+  s.connect(f); f.connect(e); e.connect(dest); e.gain.setValueAtTime(g,t); e.gain.exponentialRampToValueAtTime(.0008,t+dur); s.start(t); s.stop(t+dur+.02);
+}
+function kick(dest,t,g=.9){ const o=ac.createOscillator(), e=ac.createGain(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(42,t+.14); e.gain.setValueAtTime(g,t); e.gain.exponentialRampToValueAtTime(.001,t+.32); o.connect(e); e.connect(dest); o.start(t); o.stop(t+.35); }
+function sfxStamp(name){
+  if(!S.soundOn || !audio()) return;
+  const t=ac.currentTime+.3;
+  kick(sfxG,t,1); noise(sfxG,t,.12,"lowpass",900,.7);
+  const seq = name==="상" ? [72,76,79,84,88] : name==="중" ? [76,79,84] : [79,84];
+  seq.forEach((m,i)=>{ tone(sfxG,t+.08+i*.07,m,.5,"triangle",.22); tone(sfxG,t+.08+i*.07,m+12,.3,"sine",.06); });
+  if(name==="상") noise(sfxG,t+.4,.6,"highpass",6000,.12);
+}
+function sfxUndo(){
+  if(!S.soundOn || !audio()) return;
+  const t=ac.currentTime+.02;
+  [76,72,67].forEach((m,i)=>tone(sfxG,t+i*.07,m,.22,"sine",.16));
+}
+function sfxFanfare(){
+  if(!S.soundOn || !audio()) return;
+  const t=ac.currentTime+.05;
+  [[72,0,.18],[72,.15,.18],[72,.3,.18],[76,.45,.5],[74,.95,.18],[76,1.1,.18],[79,1.25,.9]].forEach(([m,d,l])=>{ tone(sfxG,t+d,m,l+.3,"sawtooth",.12,2400); tone(sfxG,t+d,m-12,l+.3,"square",.05,1200); });
+  [60,64,67,72].forEach(m=>tone(sfxG,t+1.25,m,1.6,"triangle",.08));
+}
+const SONGS = {
+  hype: { bpm:118, swing:0, prog:[[57,[69,72,76]],[53,[65,69,72]],[60,[67,72,76]],[55,[67,71,74]]], arp:true, four:true },
+  chill:{ bpm:84, swing:.12, prog:[[53,[64,69,72,76]],[52,[62,67,71,74]],[50,[60,65,69,72]],[48,[59,64,67,71]]], arp:false, four:false }
+};
+let bgm=null, step=0, nextT=0, timer=null;
+function startBgm(name){
+  stopBgm(); stopFile(); if(!audio()) return;
+  bgm=SONGS[name]; step=0; nextT=ac.currentTime+.08;
+  timer=setInterval(schedule,25); $("#music").classList.add("playing");
+}
+function stopBgm(){ clearInterval(timer); timer=null; bgm=null; $("#music").classList.remove("playing"); }
+function schedule(){
+  const sp=60/bgm.bpm/4;
+  while(nextT < ac.currentTime+.12){
+    const s=step%16, bar=Math.floor(step/16)%4, [root,ch]=bgm.prog[bar];
+    let t=nextT + (s%2 ? bgm.swing*sp : 0);
+    if(bgm.four){ if(s%4===0) kick(bgmG,t,.8); }
+    else { if(s===0||s===10) kick(bgmG,t,.7); }
+    if(s===4||s===12) noise(bgmG,t,bgm.four?.16:.22,"bandpass",bgm.four?1800:1200,bgm.four?.5:.35);
+    if(s%2===0) noise(bgmG,t,.04,"highpass",7500,s%4===2?.2:.09);
+    if(bgm.four ? [0,3,6,8,11,14].includes(s) : [0,7,10].includes(s)) tone(bgmG,t,root-12+(bgm.four&&s%8===6?12:0),sp*2.2,"sawtooth",.16,500);
+    if(s===0) ch.forEach(m=>tone(bgmG,t,m,sp*16,bgm.four?"sawtooth":"triangle",bgm.four?.035:.06,bgm.four?1600:1100));
+    if(bgm.arp && s%2===0){ const n=ch[(s/2)%ch.length]+12; tone(bgmG,t,n,sp*1.5,"square",.04,3200); }
+    if(!bgm.arp && (s===3||s===11)) tone(bgmG,t,ch[(bar+s)%ch.length]+12,sp*5,"sine",.08);
+    nextT+=sp; step++;
+  }
+}
+const fileAudio = new Audio(); fileAudio.loop=true;
+function stopFile(){ fileAudio.pause(); }
+function setBgmButtons(name){ document.querySelectorAll("[data-bgm]").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.bgm===name))); }
+
+/* ---------- Data ---------- */
+function onAwards(i, list, isFirst){
+  list = list.filter(a => !removed.has(a.id));   // 취소 중인 도장이 옛 스냅샷으로 되살아나지 않게
+  const old = new Set(S.awards[i].map(a=>a.id));
+  const fresh = list.filter(a=>!old.has(a.id) && !seen.has(a.id) && a.t > loadT-4000);
+  const gone = S.awards[i].filter(a=>!list.some(b=>b.id===a.id));
+  S.awards[i] = list;
+  list.forEach(a=>seen.add(a.id));
+  gone.forEach(a=>cancelFx(a.id));               // 다른 기기에서 취소된 도장의 효과도 정리
+  const mode = isFirst ? undefined : fresh.length ? "add" : gone.length ? "remove" : undefined;
+  renderCard(i, mode);
+  renderRanks(!fresh.length); renderFeed();
+  if(!isFirst) fresh.sort((a,b)=>a.t-b.t).forEach(a=>celebrate(i,a));
+}
+function setLive(on, txt){ const d=$("#liveDot"); d.classList.toggle("off",!on); d.textContent=txt; }
+function notice(msg){ const n=$("#notice"); if(msg){ n.textContent=msg; n.hidden=false; } else n.hidden=true; }
+
+/* 같은 문서에 대한 쓰기는 한 번에 하나씩 차례로 */
+const chains = {};
+function chain(key, fn){ const p = (chains[key]||Promise.resolve()).catch(()=>{}).then(fn); chains[key] = p; return p; }
+const inflight = new Set();
+async function award(cls, name){
+  const lv=LV[name]; audio();
+  refreshPeriod();
+  if (!P.open){ toast(closedMsg()); renderPer(cls); return; }
+  if (S.mode==="live" && !S.nick){ await nickFlow(); if (!S.nick) return; }
+  const got = gotThisPeriod(cls);
+  if (got){ toast(`${cls}반은 ${P.cur}교시에 이미 도장(${got.lv})을 받았어요. 바꾸려면 먼저 취소해 주세요`); return; }
+  const id = stampId(P.day, P.cur), key = `${cls}/${id}`;
+  if (inflight.has(key)) return;               // 빠른 연속 클릭 방지
+  if (uToast){ uToast.remove(); uToast=null; } // 이전 취소의 '되돌리기'와 겹치지 않게
+  const a={ lv:name, n:lv.n, wk:S.week, memo:$("#memo").value.trim().slice(0,40), t:Date.now(), day:P.day, p:P.cur, by:S.nick||"" };
+  removed.delete(id); seen.delete(id);
+  if(S.mode==="live"){
+    inflight.add(key);
+    // 문서 id = 날짜+교시 → 여러 기기에서 동시에 눌러도 그 교시 도장은 하나만 남음
+    try { await chain(key, ()=>db.doc(`classes/c${cls}/stamps/${id}`).setStamp(a)); }
+    catch(e){
+      if (e?.code==="permission-denied"){ refreshPeriod(true); if (!P.open) toast(closedMsg()); else adminExpired(); }
+      else toast("도장을 저장하지 못했어요. 잠시 뒤 다시 눌러 주세요.");
+    }
+    finally { inflight.delete(key); }
+  } else {
+    onAwards(cls, [...S.awards[cls], {...a, id}], false); saveLocal();
+  }
+}
+
+/* 도장 취소: 화면에서 즉시 빠지고, 축하 효과도 멈추고, 6초 안에 되돌리기 가능 */
+const stripId = ({id, ...rest}) => rest;
+function applyRemove(cls, a){
+  removed.add(a.id);
+  cancelFx(a.id);
+  S.awards[cls] = S.awards[cls].filter(x=>x.id!==a.id);
+  renderCard(cls, "remove"); renderRanks(true); renderFeed();
+  const card = $("#c"+cls); card.classList.remove("undone"); void card.offsetWidth; card.classList.add("undone");
+  sfxUndo();
+}
+function applyRestore(cls, a){
+  removed.delete(a.id);
+  if(!S.awards[cls].some(x=>x.id===a.id)) S.awards[cls] = [...S.awards[cls], a];
+  renderCard(cls, "add"); renderRanks(true); renderFeed();
+}
+async function removeStamp(cls, a){
+  if(!a) return;
+  refreshPeriod();
+  if(!canCancel(a)){ toast("교시가 끝난 도장은 취소할 수 없어요"); return; }
+  applyRemove(cls, a);
+  undoToast(`${cls}반 ${a.lv} 도장(+${a.n})을 취소했어요`, ()=>restoreStamp(cls, a));
+  if(S.mode==="live"){
+    try { await chain(`${cls}/${a.id}`, ()=>db.doc(`classes/c${cls}/stamps/${a.id}`).delete()); }
+    catch(e) { applyRestore(cls, a); if(uToast){ uToast.remove(); uToast=null; } toast(e?.code==="permission-denied" ? "교시가 끝나서 이 도장은 취소할 수 없어요" : "취소하지 못했어요. 다시 눌러 주세요."); }
+  } else saveLocal();
+}
+async function restoreStamp(cls, a){
+  if (a.day && S.awards[cls].some(x=>x.day===a.day && x.p===a.p)){ toast(`${cls}반 ${a.p}교시에는 이미 다른 도장이 있어서 되돌릴 수 없어요`); return; }
+  refreshPeriod();
+  if (S.mode==="live" && (!canCancel(a) || a.by !== S.nick)){ toast("되돌릴 수 없어요. 도장을 다시 찍어 주세요"); return; }
+  applyRestore(cls, a);
+  if(S.mode==="live"){
+    try { await chain(`${cls}/${a.id}`, ()=>db.doc(`classes/c${cls}/stamps/${a.id}`).setStamp(stripId(a))); toast(`${cls}반 도장을 되돌렸어요`); }
+    catch { removed.add(a.id); S.awards[cls]=S.awards[cls].filter(x=>x.id!==a.id); renderCard(cls,"remove"); renderRanks(true); renderFeed(); toast("되돌리지 못했어요. 도장을 다시 찍어 주세요."); }
+  } else { saveLocal(); toast(`${cls}반 도장을 되돌렸어요`); }
+}
+function undoLast(cls){
+  refreshPeriod();
+  const cur = gotThisPeriod(cls);
+  if(!canCancel(cur)){ toast("교시가 끝난 도장은 취소할 수 없어요. 취소는 도장을 찍은 그 교시 안에서만 돼요"); renderCard(cls); return; }
+  removeStamp(cls, cur);
+}
+
+let cfgBusy=Promise.resolve();
+function saveConfig(){
+  renderWeek(); for(let i=1;i<=N;i++) renderCard(i);
+  if(S.mode==="live"){ cfgBusy = cfgBusy.then(()=>db.doc("config/main").set({goal:S.goal, week:S.week})).catch(()=>toast("설정을 저장하지 못했어요")); }
+  else saveLocal();
+}
+function saveLocal(){ store.set("stampboard-v1",{awards:S.awards,goal:S.goal,week:S.week}); }
+
+/* ---------- Firebase 연결 ---------- */
+let fb = null;   // Firebase 모듈 모음
+let me = null;   // 로그인한 선생님
+async function loadFirebase(){
+  const V = "10.14.1", base = `https://www.gstatic.com/firebasejs/${V}/`;
+  const [appM, fsM, authM] = await Promise.all([import(base+"firebase-app.js"), import(base+"firebase-firestore.js"), import(base+"firebase-auth.js")]);
+  const app = appM.initializeApp(FIREBASE_CONFIG);
+  const fdb = fsM.getFirestore(app), auth = authM.getAuth(app);
+  fb = { fs: fsM, authM, fdb, auth };
+  /* 기존 코드가 쓰던 모양(db.doc / db.collection)으로 감싸기 */
+  const wrapDoc = s => ({ exists: s.exists(), data: () => s.data(), metadata: s.metadata, id: s.id });
+  return {
+    doc: path => {
+      const ref = fsM.doc(fdb, path);
+      return {
+        set: data => fsM.setDoc(ref, data),
+        setStamp: data => fsM.setDoc(ref, { ...data, ts: fsM.serverTimestamp() }),
+        delete: () => fsM.deleteDoc(ref),
+        onSnapshot: (cb, err) => fsM.onSnapshot(ref, { includeMetadataChanges: true }, s => cb(wrapDoc(s)), err)
+      };
+    },
+    collection: path => ({
+      onSnapshot: (cb, err) => fsM.onSnapshot(fsM.collection(fdb, path), { includeMetadataChanges: true }, cb, err)
+    })
+  };
+}
+function renderLogin(){
+  const b = $("#loginBtn"); if (!b) return;
+  b.hidden = S.mode !== "live";
+  b.textContent = (me && S.canEdit) ? `로그아웃 (${S.nick || (me.email||"선생님").split("@")[0]})` : "선생님 로그인";
+}
+
+/* ---------- 선생님 2차 인증 (8자리 암호) ----------
+   암호 확인은 Firebase 보안 규칙이 서버에서 해요.
+   맞으면 admins/{내 uid} 문서가 저장되고, 그 문서가 있는 계정만 도장을 찍을 수 있어요. */
+let pinBusy = false, pinResolve = null;
+const PIN_LOCK_KEY = "stampboard-pinlock";
+function pinLockLeft(){ const l = store.get(PIN_LOCK_KEY); return l && l.until > Date.now() ? Math.ceil((l.until-Date.now())/1000) : 0; }
+function pinFail(){
+  const l = store.get(PIN_LOCK_KEY) || {n:0, until:0};
+  l.n = (l.until && l.until < Date.now()) ? 1 : l.n + 1;
+  if (l.n >= 5){ l.until = Date.now() + 5*60*1000; l.n = 0; }
+  store.set(PIN_LOCK_KEY, l); return l;
+}
+function askPin(msg){
+  const box = $("#pin"), inp = $("#pinIn");
+  $("#pinErr").textContent = msg || "";
+  inp.value = ""; drawPin(); box.hidden = false;
+  setTimeout(()=>inp.focus(), 50);
+  return new Promise(res => { pinResolve = res; });
+}
+function closePin(v){ if (v === null){ $("#pin").hidden = true; $("#pinErr").textContent = ""; } const r = pinResolve; pinResolve = null; if (r) r(v); }
+function drawPin(){
+  const v = $("#pinIn").value;
+  $("#pinDots").innerHTML = Array.from({length:8},(_,i)=>`<i class="${i<v.length?"on":""}"></i>`).join("");
+  $("#pinOk").disabled = v.length !== 8;
+}
+async function saveAdmin(u, code){
+  try {
+    await fb.fs.setDoc(fb.fs.doc(fb.fdb, "admins", u.uid), { code, email: u.email || "", t: Date.now() }, { merge: true });
+    return true;
+  } catch(e){
+    if (e?.code === "permission-denied") return false;
+    throw e;
+  }
+}
+async function pinFlow(u){
+  pinBusy = true;
+  let msg = "";
+  try {
+    while (true){
+      const left = pinLockLeft();
+      if (left) msg = `암호를 5번 틀려서 잠겼어요. ${Math.ceil(left/60)}분 뒤에 다시 해 주세요.`;
+      const code = await askPin(msg);
+      if (code === null) return false;
+      if (pinLockLeft()){ $("#pinIn").value=""; msg = `잠겨 있어요. ${Math.ceil(pinLockLeft()/60)}분 뒤에 다시 해 주세요.`; continue; }
+      let ok;
+      try { ok = await saveAdmin(u, code); }
+      catch(e){ msg = "인증 서버에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요."; continue; }
+      if (ok){ store.set(PIN_LOCK_KEY, null); return true; }
+      const pb = $("#pin"); pb.classList.remove("shake"); void pb.offsetWidth; pb.classList.add("shake");
+      const l = pinFail();
+      msg = l.until > Date.now() ? "암호를 5번 틀려서 5분 동안 잠겼어요." : `암호가 맞지 않아요. (남은 기회 ${5-l.n}번)`;
+    }
+  } finally { pinBusy = false; $("#pin").hidden = true; $("#pinErr").textContent = ""; }
+}
+function becomeTeacher(){
+  S.canEdit = true; store.set("stampboard-student", false);
+  applyRole(); renderLogin(); renderNick(); notice("");
+  toast(`2차 인증 완료! ${S.nick ? S.nick+" 선생님, " : ""}관리자로 로그인했어요`);
+}
+async function loadNick(u){
+  try { const d = await fb.fs.getDoc(fb.fs.doc(fb.fdb, "admins", u.uid)); S.nick = d.exists() ? String(d.data()?.nick || "") : ""; }
+  catch { S.nick = ""; }
+}
+/* 닉네임 정하기 창 (한 번 정하면 변경 불가 → 두 번 확인) */
+let nickResolve = null, nickPending = "";
+function askNick(msg){
+  nickPending = ""; $("#nickOk").textContent = "이 닉네임으로 정하기"; $("#nickOk").classList.remove("confirm");
+  $("#nickIn").value = ""; $("#nickErr").textContent = msg || "";
+  $("#nickDlg").hidden = false;
+  setTimeout(()=>$("#nickIn").focus(), 50);
+  return new Promise(res => { nickResolve = res; });
+}
+function closeNick(v){ $("#nickDlg").hidden = true; const r = nickResolve; nickResolve = null; if (r) r(v); }
+function nickSubmit(){
+  const nick = $("#nickIn").value.replace(/\s+/g," ").trim().slice(0,10);
+  if (!nick){ $("#nickErr").textContent = "닉네임을 1~10자로 적어 주세요"; return; }
+  if (nickPending !== nick){        // 1단계: 확인 요청
+    nickPending = nick;
+    $("#nickErr").textContent = `'${nick}'(으)로 확정할까요? 확정하면 프로젝트가 끝날 때까지 바꿀 수 없어요.`;
+    $("#nickOk").textContent = "확정하기"; $("#nickOk").classList.add("confirm");
+    return;
+  }
+  closeNick(nick);                  // 2단계: 확정
+}
+async function nickFlow(){
+  if (!me || S.nick) return;
+  let msg = "";
+  while (true){
+    const nick = await askNick(msg);
+    if (nick === null){ await toggleLogin(); return; }   // 취소 → 로그아웃
+    try {
+      await fb.fs.setDoc(fb.fs.doc(fb.fdb, "admins", me.uid), { nick }, { merge: true });
+      S.nick = nick; renderNick(); renderLogin();
+      toast(`닉네임을 '${nick}'(으)로 정했어요`);
+      return;
+    } catch(e){
+      if (e?.code === "permission-denied"){
+        await loadNick(me);                               // 다른 기기에서 이미 정했을 수 있음
+        if (S.nick){ renderNick(); renderLogin(); toast(`이미 정해진 닉네임 '${S.nick}'을(를) 사용해요`); return; }
+        closeNick(null); adminExpired(); return;
+      }
+      msg = "저장하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.";
+    }
+  }
+}
+function renderNick(){ const t = $("#nickTxt"); if (t) t.textContent = S.nick || "(없음)"; }
+async function afterGoogleLogin(u){
+  const ok = await pinFlow(u);
+  if (ok){ await loadNick(u); S.canEdit = true; if (!S.nick) await nickFlow(); if (me) becomeTeacher(); }
+  else { await fb.authM.signOut(fb.auth); toast("2차 인증을 하지 않아 로그아웃했어요"); }
+}
+/* 이미 로그인된 기기를 다시 열었을 때: 관리자 문서가 있으면 선생님, 없으면 로그아웃 */
+async function restoreSession(u){
+  try {
+    const d = await fb.fs.getDoc(fb.fs.doc(fb.fdb, "admins", u.uid));
+    if (d.exists()){
+      S.nick = String(d.data()?.nick || "");
+      S.canEdit = true; applyRole(); renderLogin(); renderNick();
+      if (!S.nick) nickFlow();
+      return;
+    }
+  } catch {}
+  await fb.authM.signOut(fb.auth);
+}
+/* 서버에서 암호가 바뀌어 권한이 사라졌을 때 */
+async function adminExpired(){
+  if (!me) return;
+  S.canEdit = false; applyRole();
+  toast("선생님 인증이 만료됐어요. 다시 로그인해서 새 암호를 입력해 주세요");
+  try { await fb.authM.signOut(fb.auth); } catch {}
+}
+
+const LOGIN_ERR = {
+  "auth/unauthorized-domain": "이 사이트 주소가 Firebase '승인된 도메인'에 없어요. Firebase → Authentication → 설정 → 승인된 도메인에 이 주소를 추가해 주세요.",
+  "auth/operation-not-allowed": "Firebase에서 Google 로그인이 꺼져 있어요. Firebase → Authentication → 로그인 방법 → Google을 '사용 설정'으로 켜고 저장해 주세요.",
+  "auth/configuration-not-found": "Firebase Authentication이 아직 시작되지 않았어요. Firebase → Authentication에서 [시작하기]를 누르고 Google 로그인을 켜 주세요.",
+  "auth/invalid-api-key": "Firebase 설정값(apiKey)이 맞지 않아요. index.html의 설정값을 확인해 주세요.",
+  "auth/network-request-failed": "인터넷 연결 문제로 로그인하지 못했어요. 연결을 확인하고 다시 눌러 주세요.",
+  "auth/popup-blocked": "브라우저가 로그인 창을 막았어요. 이 사이트의 팝업을 허용해 주세요. 잠시 뒤 전체 화면 로그인으로 넘어가요.",
+  "auth/internal-error": "Firebase 내부 오류가 났어요. Google 로그인이 켜져 있는지와 승인된 도메인을 확인해 주세요."
+};
+function showLoginError(e){
+  const code = e?.code || "unknown";
+  const msg = LOGIN_ERR[code] || "로그인하지 못했어요.";
+  notice(`로그인 오류 — ${msg}  (오류 코드: ${code})`);
+  toast("로그인하지 못했어요. 위쪽 노란 안내를 확인해 주세요");
+}
+/* 카카오톡·네이버·인스타그램 등 앱 안의 브라우저는 구글이 로그인을 막아요 → 크롬/사파리로 열기 */
+const UA = navigator.userAgent || "";
+const IN_APP = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|BAND\/|; wv\)/i.test(UA);
+const IS_KAKAO = /KAKAOTALK/i.test(UA);
+function openExternal(){
+  if (IS_KAKAO){ location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(location.href); return; }
+  if (/Android/i.test(UA)){ location.href = "intent://" + location.host + location.pathname + "#Intent;scheme=https;package=com.android.chrome;end"; return; }
+  notice("이 앱 안의 화면에서는 구글 로그인이 막혀요. 오른쪽 위 ⋯ 메뉴에서 '기본 브라우저로 열기' 또는 'Safari로 열기'를 눌러 주세요.");
+}
+async function toggleLogin(){
+  if (!fb) return;
+  if (me && S.canEdit){
+    try { await fb.authM.signOut(fb.auth); } catch {}
+    me = null; S.canEdit = false; S.nick = ""; applyRole(); renderLogin(); renderNick();
+    toast("로그아웃했어요. 다시 로그인하려면 [선생님 로그인]을 누르세요");
+    return;
+  }
+  if (me){ try { await fb.authM.signOut(fb.auth); } catch {} }
+  if (IN_APP){ notice("카카오톡 등 앱 안에서 열린 화면이라 구글 로그인이 막혀요. 크롬·사파리로 다시 여는 중이에요…"); openExternal(); return; }
+  const provider = new fb.authM.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  try {
+    pinBusy = true;
+    const r = await fb.authM.signInWithPopup(fb.auth, provider);
+    notice("");
+    await afterGoogleLogin(r.user);
+  }
+  catch(e){
+    pinBusy = false;
+    if (e?.code === "auth/popup-closed-by-user" || e?.code === "auth/cancelled-popup-request") return;
+    showLoginError(e);
+    if (e?.code === "auth/popup-blocked"){   // 팝업이 막히면 전체 화면 로그인으로
+      try { sessionStorage.setItem("stampboard-pin-pending","1"); } catch {}
+      setTimeout(()=>fb.authM.signInWithRedirect(fb.auth, provider).catch(showLoginError), 1500);
+    }
+  }
+}
+
+async function connect(){
+  try { db = await loadFirebase(); } catch { db = null; }
+  if(S.mode==="local") return;
+  if(!db){ return localMode(); }
+  S.mode="live";
+  S.canEdit = false; applyRole(); renderLogin();
+  fb.authM.getRedirectResult(fb.auth).catch(showLoginError);
+  fb.authM.onAuthStateChanged(fb.auth, u => {
+    me = u || null;
+    if (!me){ S.canEdit = false; applyRole(); renderLogin(); return; }
+    if (pinBusy) return;                       // 방금 로그인 → 2차 인증 진행 중
+    let pending = false; try { pending = sessionStorage.getItem("stampboard-pin-pending")==="1"; sessionStorage.removeItem("stampboard-pin-pending"); } catch {}
+    if (pending) afterGoogleLogin(me);         // 전체 화면 로그인에서 돌아옴 → 2차 인증
+    else restoreSession(me);                   // 이미 로그인돼 있던 기기
+  });
+  let pending = N+1, confirmed=false;
+  const timeout = setTimeout(()=>{ if(!confirmed){ notice("도장 기록에 아직 연결되지 않았어요. 인터넷 연결을 확인해 주세요. 연결되면 자동으로 나타나요."); setLive(false,"연결 지연"); } },10000);
+  const done = snap => { if(!snap.metadata.fromCache && !confirmed && --pending<=0){ confirmed=true; clearTimeout(timeout); notice(""); setLive(true,"실시간"); } };
+  const fail = e => { clearTimeout(timeout); setLive(false,"연결 끊김"); notice(e?.code==="permission-denied" ? "도장 기록을 읽을 권한이 없어요. Firestore 보안 규칙을 확인해 주세요." : "도장 기록 연결이 끊겼어요. 페이지를 새로고침해 주세요."); };
+  db.doc("config/main").onSnapshot(s=>{ const d=s.exists?s.data():null; if(d){ S.goal=clampGoal(d.goal); S.week=clampWeek(d.week); renderWeek(); for(let i=1;i<=N;i++) renderCard(i); } done(s); }, fail);
+  for(let i=1;i<=N;i++){
+    let first=true; const counted={v:false};
+    db.collection(`classes/c${i}/stamps`).onSnapshot(snap=>{
+      const list = snap.docs.map(d=>{ const x=d.data()||{}; return { id:d.id, lv: LV[x.lv]?x.lv:"하", n: LV[x.lv]?LV[x.lv].n:1, wk:+x.wk||1, memo: typeof x.memo==="string"?x.memo:"", t:+x.t||0, day: typeof x.day==="string"?x.day:"", p: Math.min(7,Math.max(0,+x.p||0)), by: typeof x.by==="string"?x.by.slice(0,12):"" }; });
+      onAwards(i, list, first); first=false;
+      if(!counted.v && !snap.metadata.fromCache){ counted.v=true; done(snap); }
+    }, fail);
+  }
+}
+function localMode(){
+  S.mode="local"; S.canEdit=true;
+  const d=store.get("stampboard-v1");
+  if(d){ for(let i=1;i<=N;i++) S.awards[i]=Array.isArray(d.awards?.[i])?d.awards[i]:[]; S.goal=clampGoal(d.goal); S.week=clampWeek(d.week); }
+  Object.values(S.awards).flat().forEach(a=>seen.add(a.id));
+  applyRole(); renderAll(); prevLeader = null; renderRanks(true);
+  setLive(false,"이 기기");
+  notice("Firebase에 연결하지 못해 체험 모드로 열렸어요. 도장 기록이 이 기기에만 저장돼요. 인터넷 연결을 확인하고 새로고침해 주세요.");
+}
+const clampGoal = g => Math.min(300, Math.max(20, Math.round((+g||100)/10)*10));
+const clampWeek = w => Math.min(5, Math.max(1, +w||1));
+function applyRole(){
+  $("#teacher").hidden = !S.canEdit; $("#studentBtn").hidden = !S.canEdit;
+  S.student = !S.canEdit || !!store.get("stampboard-student");
+  if(!S.canEdit) S.student = true;
+  document.body.classList.toggle("student", S.student);
+  $("#studentBtn").setAttribute("aria-pressed", String(S.canEdit && S.student));
+}
+
+/* ---------- Wiring ---------- */
+document.body.classList.add("student");
+buildBoard(); refreshPeriod(); renderAll();
+setInterval(()=>refreshPeriod(), 15000); sizeFx(); sizeSky(); requestAnimationFrame(skyLoop);
+addEventListener("resize", ()=>{ sizeFx(); sizeSky(); });
+$("#board").addEventListener("click", e=>{
+  const b=e.target.closest(".aw"); if(b){ award(+b.dataset.cls, b.dataset.lv); return; }
+  const u=e.target.closest(".undo"); if(u && !u.disabled) undoLast(+u.dataset.undo);
+});
+$("#feed").addEventListener("click", e=>{
+  const x=e.target.closest(".x"); if(!x || S.student) return;
+  const cls=+x.dataset.del, a=S.awards[cls]?.find(s=>s.id===x.dataset.id);
+  removeStamp(cls, a);
+});
+$("#loginBtn").addEventListener("click", toggleLogin);
+$("#nickForm").addEventListener("submit", e=>{ e.preventDefault(); nickSubmit(); });
+$("#nickIn").addEventListener("input", ()=>{ if (nickPending){ nickPending=""; $("#nickErr").textContent=""; $("#nickOk").textContent="이 닉네임으로 정하기"; $("#nickOk").classList.remove("confirm"); } });
+$("#nickCancel").addEventListener("click", ()=>closeNick(null));
+$("#pinPad").addEventListener("click", e=>{
+  const b = e.target.closest("button[data-k]"); if (!b) return;
+  const inp = $("#pinIn");
+  inp.value = b.dataset.k==="del" ? inp.value.slice(0,-1) : (inp.value + b.dataset.k).slice(0,8);
+  drawPin(); inp.focus();
+});
+$("#pinIn").addEventListener("input", e=>{ e.target.value = e.target.value.replace(/\D/g,"").slice(0,8); drawPin(); });
+$("#pin").addEventListener("click", e=>{ if (e.target.id==="pin") $("#pinIn").focus(); });
+$("#pinForm").addEventListener("submit", e=>{
+  e.preventDefault(); const v = $("#pinIn").value;
+  if (v.length !== 8){ $("#pinErr").textContent = "8자리를 모두 입력해 주세요"; return; }
+  $("#pinErr").textContent = "확인 중…"; closePin(v);
+});
+$("#pinCancel").addEventListener("click", ()=>closePin(null));
+document.addEventListener("keydown", e=>{ if (!$("#pin").hidden && e.key==="Escape") closePin(null); });
+$("#soundBtn").addEventListener("click", e=>{ S.soundOn=!S.soundOn; if(S.soundOn) audio(); e.currentTarget.setAttribute("aria-pressed",String(S.soundOn)); e.currentTarget.textContent = S.soundOn ? "소리 켜짐" : "소리 켜기"; if(S.soundOn) sfxStamp("하"); });
+$("#studentBtn").addEventListener("click", e=>{ S.student=!S.student; store.set("stampboard-student", S.student); document.body.classList.toggle("student",S.student); e.currentTarget.setAttribute("aria-pressed",String(S.student)); toast(S.student ? "학생 화면: 도장 버튼이 숨겨졌어요" : "교사 화면: 도장 버튼이 보여요"); });
+$("#fsBtn").addEventListener("click", ()=>{ try{ (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen())?.catch?.(()=>toast("이 화면에서는 전체화면을 쓸 수 없어요")); }catch{ toast("이 화면에서는 전체화면을 쓸 수 없어요"); } });
+$("#weekSel").addEventListener("change", e=>{ S.week=clampWeek(e.target.value); saveConfig(); toast(`${S.week}주차로 바꿨어요`); });
+$("#goalIn").addEventListener("change", e=>{ S.goal=clampGoal(e.target.value); saveConfig(); });
+document.querySelectorAll("[data-bgm]").forEach(b=>b.addEventListener("click", ()=>{
+  const n=b.dataset.bgm; setBgmButtons(n);
+  if(n==="off"){ stopBgm(); stopFile(); } else { startBgm(n); if(!S.soundOn) $("#soundBtn").click(); }
+}));
+$("#fileIn").addEventListener("change", e=>{
+  const f=e.target.files?.[0]; if(!f) return;
+  stopBgm(); setBgmButtons("none"); audio();
+  try{ URL.revokeObjectURL(fileAudio.src); }catch{}
+  fileAudio.src=URL.createObjectURL(f); fileAudio.volume=vol;
+  fileAudio.play().then(()=>{ $("#music").classList.add("playing"); $("#fileName").textContent=`재생 중: ${f.name}`; }).catch(()=>toast("이 파일은 재생할 수 없어요. mp3나 m4a 파일을 골라 주세요."));
+  fileAudio.onpause=()=>$("#music").classList.remove("playing");
+  if(!S.soundOn) $("#soundBtn").click();
+});
+$("#vol").addEventListener("input", e=>{ vol=e.target.value/100; if(master) master.gain.value=vol; fileAudio.volume=vol; });
+setInterval(renderFeed, 30000);
+setTimeout(()=>{ if(S.mode==="loading") localMode(); }, 12000);
+connect();
+})();
+</script>
+
+</body>
+</html>
