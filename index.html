@@ -790,6 +790,7 @@ async function loadFirebase(){
   const [appM, fsM, authM] = await Promise.all([import(base+"firebase-app.js"), import(base+"firebase-firestore.js"), import(base+"firebase-auth.js")]);
   const app = appM.initializeApp(FIREBASE_CONFIG);
   const fdb = fsM.getFirestore(app), auth = authM.getAuth(app);
+  try { await authM.setPersistence(auth, authM.browserLocalPersistence); } catch {}   // 창을 닫았다 열어도 로그인 유지
   fb = { fs: fsM, authM, fdb, auth };
   /* 기존 코드가 쓰던 모양(db.doc / db.collection)으로 감싸기 */
   const wrapDoc = s => ({ exists: s.exists(), data: () => s.data(), metadata: s.metadata, id: s.id });
@@ -870,6 +871,7 @@ async function pinFlow(u){
 }
 function becomeTeacher(){
   S.canEdit = true; store.set("stampboard-student", false);
+  if (me) rememberTeacher(me);
   applyRole(); renderLogin(); renderNick(); notice("");
   toast(`2차 인증 완료! ${S.nick ? S.nick+" 선생님, " : ""}관리자로 로그인했어요`);
 }
@@ -906,7 +908,7 @@ async function nickFlow(){
     if (nick === null){ await toggleLogin(); return; }   // 취소 → 로그아웃
     try {
       await fb.fs.setDoc(fb.fs.doc(fb.fdb, "admins", me.uid), { nick }, { merge: true });
-      S.nick = nick; renderNick(); renderLogin();
+      S.nick = nick; renderNick(); renderLogin(); rememberTeacher(me);
       toast(`닉네임을 '${nick}'(으)로 정했어요`);
       return;
     } catch(e){
@@ -926,21 +928,41 @@ async function afterGoogleLogin(u){
   else { await fb.authM.signOut(fb.auth); toast("2차 인증을 하지 않아 로그아웃했어요"); }
 }
 /* 이미 로그인된 기기를 다시 열었을 때: 관리자 문서가 있으면 선생님, 없으면 로그아웃 */
-async function restoreSession(u){
-  try {
-    const d = await fb.fs.getDoc(fb.fs.doc(fb.fdb, "admins", u.uid));
-    if (d.exists()){
-      S.nick = String(d.data()?.nick || "");
-      S.canEdit = true; applyRole(); renderLogin(); renderNick();
-      if (!S.nick) nickFlow();
-      return;
-    }
-  } catch {}
+/* 이 기기에 선생님 로그인 기억 (화면을 바로 선생님 모드로 보여 주기 위한 것 — 실제 권한은 서버 규칙이 확인) */
+const TEACHER_KEY = "stampboard-teacher";
+function rememberTeacher(u){ store.set(TEACHER_KEY, { uid: u.uid, nick: S.nick || "" }); }
+function forgetTeacher(){ store.set(TEACHER_KEY, null); }
+function showTeacher(){
+  S.canEdit = true; applyRole(); renderLogin(); renderNick();
+  if (S.student) toast("지금은 '학생 화면'이에요. 도장 버튼은 [학생 화면] 버튼을 눌러 다시 켤 수 있어요");
+}
+async function restoreSession(u, attempt = 0){
+  const saved = store.get(TEACHER_KEY);
+  if (saved && saved.uid === u.uid && attempt === 0){       // 기억된 선생님 → 확인하는 동안에도 바로 선생님 화면
+    S.nick = saved.nick || S.nick || ""; showTeacher();
+  }
+  let d;
+  try { d = await fb.fs.getDoc(fb.fs.doc(fb.fdb, "admins", u.uid)); }
+  catch {
+    // 인터넷이 잠깐 끊기는 등 확인을 못 한 경우: 로그아웃하지 않고 잠시 뒤 다시 확인
+    if (attempt < 6) setTimeout(()=>{ if (me && me.uid === u.uid) restoreSession(u, attempt+1); }, Math.min(30000, 2000 * 2**attempt));
+    return;
+  }
+  if (d.exists()){
+    S.nick = String(d.data()?.nick || "");
+    rememberTeacher(u);
+    if (!S.canEdit) showTeacher(); else { renderLogin(); renderNick(); }
+    if (!S.nick) nickFlow();
+    return;
+  }
+  // 서버에 선생님 기록이 정말 없을 때만 로그아웃 (2차 인증을 마치지 않은 계정)
+  forgetTeacher();
   await fb.authM.signOut(fb.auth);
 }
 /* 서버에서 암호가 바뀌어 권한이 사라졌을 때 */
 async function adminExpired(){
   if (!me) return;
+  forgetTeacher();
   S.canEdit = false; applyRole();
   toast("선생님 인증이 만료됐어요. 다시 로그인해서 새 암호를 입력해 주세요");
   try { await fb.authM.signOut(fb.auth); } catch {}
@@ -974,6 +996,7 @@ async function toggleLogin(){
   if (!fb) return;
   if (me && S.canEdit){
     try { await fb.authM.signOut(fb.auth); } catch {}
+    forgetTeacher();
     me = null; S.canEdit = false; S.nick = ""; applyRole(); renderLogin(); renderNick();
     toast("로그아웃했어요. 다시 로그인하려면 [선생님 로그인]을 누르세요");
     return;
