@@ -419,6 +419,11 @@ function renderPer(i){
 const BELL = [[9,0],[9,55],[10,50],[11,45],[13,30],[14,25],[15,20]];   // 각 교시 시작 시각
 const OPEN_AT = [8,50];                                              // 이때부터 도장 가능 (1교시 10분 전)
 const CLOSE_AT = { 6:[15,10], 7:[16,5] };                            // 6교시 끝 15:10, 7교시 끝 16:05 → 이후 도장 불가
+/* 특별 시정 (날짜별). 30분 수업·쉬는 시간 10분·점심 1시간 → 6교시 13:40 종료
+   ※ 바꾸면 Firestore 보안 규칙의 특별 시정 숫자도 함께 바꿔야 해요. */
+const SPECIAL = {
+  "2026-11-30": { name:"단축 수업", bell:[[9,0],[9,40],[10,20],[11,0],[12,30],[13,10]], close:[13,40], max:6 }
+};
 const DAYS = ["일","월","화","수","목","금","토"];
 const KST = 9*3600*1000, DAYMS = 86400000;
 const P = { day:"", max:6, cur:1, wd:1, open:false, why:"", closeTxt:"" };
@@ -429,9 +434,15 @@ function kstNow(){
   return { y:d.getUTCFullYear(), mo:d.getUTCMonth()+1, dd:d.getUTCDate(), wd:d.getUTCDay(), ms:(now + KST) % DAYMS };
 }
 const maxPeriods = wd => (wd===2 || wd===4) ? 7 : 6;
-function autoPeriod(ms, max){
+function schedFor(day, wd){
+  const sp = SPECIAL[day];
+  if (sp) return { bell: sp.bell, close: sp.close, max: sp.max, name: sp.name };
+  const max = maxPeriods(wd);
+  return { bell: BELL, close: CLOSE_AT[max], max, name: "" };
+}
+function autoPeriod(ms, max, bell = BELL){
   let p = 1;
-  BELL.forEach((t,ix)=>{ if (ix < max && ms >= msOf(t) - 10*60000) p = ix+1; });   // 수업 10분 전부터 다음 교시로
+  bell.forEach((t,ix)=>{ if (ix < max && ms >= msOf(t) - 10*60000) p = ix+1; });   // 수업 10분 전부터 다음 교시로
   return p;
 }
 function closedMsg(){
@@ -447,13 +458,15 @@ function refreshPeriod(force){
   const k = kstNow();
   const before = P.cur + "|" + P.open;
   P.day = `${k.y}-${String(k.mo).padStart(2,"0")}-${String(k.dd).padStart(2,"0")}`;
-  P.wd = k.wd; P.max = maxPeriods(k.wd);
-  P.cur = autoPeriod(k.ms, P.max);
-  P.closeTxt = hm(CLOSE_AT[P.max]);
+  P.wd = k.wd;
+  const sc = schedFor(P.day, k.wd);
+  P.max = sc.max; P.special = sc.name;
+  P.cur = autoPeriod(k.ms, P.max, sc.bell);
+  P.closeTxt = hm(sc.close);
   const weekend = k.wd===0 || k.wd===6;
-  P.open = !weekend && k.ms >= msOf(OPEN_AT) && k.ms < msOf(CLOSE_AT[P.max]);
-  P.why = weekend ? "weekend" : k.ms < msOf(OPEN_AT) ? "before" : k.ms >= msOf(CLOSE_AT[P.max]) ? "after" : "";
-  $("#todayTxt").textContent = `${k.mo}월 ${k.dd}일(${DAYS[k.wd]}) · ${weekend ? "주말 · 도장 없음" : `${P.max}교시 · ${P.closeTxt} 마감`}`;
+  P.open = !weekend && k.ms >= msOf(OPEN_AT) && k.ms < msOf(sc.close);
+  P.why = weekend ? "weekend" : k.ms < msOf(OPEN_AT) ? "before" : k.ms >= msOf(sc.close) ? "after" : "";
+  $("#todayTxt").textContent = `${k.mo}월 ${k.dd}일(${DAYS[k.wd]}) · ${weekend ? "주말 · 도장 없음" : `${P.special ? P.special+" · " : ""}${P.max}교시 · ${P.closeTxt} 마감`}`;
   $("#perChip").textContent = weekend ? `${DAYS[k.wd]}요일 · 주말` : !P.open ? (P.why==="before" ? `${DAYS[k.wd]}요일 · 수업 전` : `${DAYS[k.wd]}요일 · 오늘 수업 끝`) : `${DAYS[k.wd]}요일 · 지금 ${P.cur}교시`;
   if (force || before !== P.cur + "|" + P.open){ for (let i=1;i<=N;i++) renderPer(i); if (typeof renderFeed === "function" && S.mode!=="loading") renderFeed(); }
 }
